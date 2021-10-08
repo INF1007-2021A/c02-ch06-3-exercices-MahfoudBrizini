@@ -3,20 +3,96 @@
 
 
 def check_brackets(text, brackets):
-	return False
+	# TODO: Associer les ouvrantes et fermantes (à l'aide d'un dict)
+	# [ouvrant1, fermant1, ouvrant2, fermant2, ...]
+	#   0         1         2         3
+	opening_brackets = dict(zip(brackets[0::2], brackets[1::2])) # Ouvrants à fermants
+	closing_brackets = dict(zip(brackets[1::2], brackets[0::2])) # Fermants à ouvrants
+
+	# TODO: Vérifier les ouvertures/fermetures
+	bracket_stack = []
+	# Pour chaque char de la string
+	for chr in text:
+		# Si ouvrant:
+		if chr in opening_brackets:
+			# On empile
+			bracket_stack.append(chr)
+		# Si fermant
+		elif chr in closing_brackets:
+			# Si la pile est vide ou on n'a pas l'ouvrant associé au top de la pile
+			if len(bracket_stack) == 0 or bracket_stack[-1] != closing_brackets[chr]:
+				# Pas bon
+				return False
+			# On dépile
+			bracket_stack.pop()
+	# On vérifie que la pile est vide à la fin (au cas où il y aurait des ouvrants de trop)
+	return len(bracket_stack) == 0
 
 def remove_comments(full_text, comment_start, comment_end):
-	return ""
+	# Cette ligne sert à rien, on ne modifie pas la variable originale de toute façon
+	text = full_text[:]
+	# Tant qu'il reste des commentaires
+	while True:
+		# Enlever les commentaires
+		# Trouver le premier début et la première fin de commentaire
+		start = text.find(comment_start)
+		end = text.find(comment_end)
+		# Si aucun des deux trouvés
+		if start == -1 and end == -1:
+			return text
+		# Si fermeture précède l'ouverture ou que j'ai un mais pas l'autre
+		if end < start or (start == -1) != (end == -1):
+			# Pas bon
+			return None
+		# Enlever le commentaire de la string
+		text = text[:start] + text[end + len(comment_end):]
+	# Retourner le texte restant
+	return text
 
 def get_tag_prefix(text, opening_tags, closing_tags):
+	for t in zip(opening_tags, closing_tags):
+		if text.startswith(t[0]):
+			return (t[0], None)
+		elif text.startswith(t[1]):
+			return (None, t[1])
 	return (None, None)
 
 def check_tags(full_text, tag_names, comment_tags):
-	return False
+	text = remove_comments(full_text, *comment_tags)
+	if text is None:
+		return False
 
+	# On construit nos balises à la HTML ("head" donne "<head>" et "</head>")
+	otags = {f"<{name}>": f"</{name}>" for name in tag_names}
+	ctags = dict((v, k) for k, v in otags.items())
+
+	# Même algo qu'au numéro 1, mais adapté aux balises de plusieurs caractères
+	tag_stack = []
+	while len(text) != 0:
+		tag = get_tag_prefix(text, otags.keys(), ctags.keys())
+		# Si ouvrant:
+		if tag[0] is not None:
+			# On empile et on avance
+			tag_stack.append(tag[0])
+			text = text[len(tag[0]):]
+		# Si fermant:
+		elif tag[1] is not None:
+			# Si pile vide OU match pas le haut de la pile:
+			if len(tag_stack) == 0 or tag_stack[-1] != ctags[tag[1]]:
+				# Pas bon
+				return False
+			# On dépile et on avance
+			tag_stack.pop()
+			text = text[len(tag[1]):]
+		# Sinon:
+		else:
+			# On avance jusqu'à la prochaine balise.
+			text = text[1:]
+	# On vérifie que la pile est vide à la fin (au cas où il y aurait des balises ouvrantes de trop)
+	return len(tag_stack) == 0
 
 if __name__ == "__main__":
-	brackets = ("(", ")", "{", "}")
+	brackets = ("(", ")", "{", "}", "[", "]")
 	yeet = "(yeet){yeet}"
 	yeeet = "({yeet})"
 	yeeeet = "({yeet)}"
@@ -27,7 +103,7 @@ if __name__ == "__main__":
 	print(check_brackets(yeeeeet, brackets))
 	print()
 
-	spam = "Hello, /* OOGAH BOOGAH */world!"
+	spam = "Hello, world!"
 	eggs = "Hello, /* OOGAH BOOGAH world!"
 	parrot = "Hello, OOGAH BOOGAH*/ world!"
 	print(remove_comments(spam, "/*", "*/"))
